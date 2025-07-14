@@ -1,0 +1,98 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Notes App</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-100 to-white min-h-screen font-sans">
+
+  <div class="max-w-2xl mx-auto mt-10 p-6 bg-white shadow-xl rounded-xl">
+    <h1 class="text-3xl font-bold text-blue-700 mb-6 text-center">📒 Notes App</h1>
+
+    <form id="noteForm" class="space-y-4 mb-6">
+      <input type="text" id="title" placeholder="Note Title"
+        class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400" required/>
+      <textarea id="content" placeholder="Note Content"
+        class="w-full p-3 border border-gray-300 rounded-md h-24 focus:outline-none focus:ring-2 focus:ring-blue-400" required></textarea>
+      <button type="submit"
+        class="w-full bg-blue-600 text-white font-semibold py-2 rounded hover:bg-blue-700 transition">Add Note</button>
+    </form>
+
+    <div id="message" class="text-center text-sm mb-4 font-semibold"></div>
+    <div id="notesList" class="space-y-4"></div>
+  </div>
+
+  <script>
+    async function fetchNotes() {
+      const res = await fetch('/api/notes');
+      const notes = await res.json();
+      const notesList = document.getElementById('notesList');
+      notesList.innerHTML = '';
+      notes.forEach(note => {
+        const div = document.createElement('div');
+        div.className = 'p-4 bg-blue-50 rounded-md shadow border-l-4 border-blue-400';
+        div.innerHTML = `
+          <div class="flex justify-between items-start">
+            <div class="flex-1">
+              <h3 contenteditable="true" onblur="updateNote('${note._id}', this.innerText, 'title')"
+                  class="text-lg font-bold text-blue-700 focus:outline-none">${note.title}</h3>
+              <p contenteditable="true" onblur="updateNote('${note._id}', this.innerText, 'content')"
+                  class="mt-1 text-gray-700 focus:outline-none">${note.content}</p>
+            </div>
+            <button onclick="deleteNote('${note._id}')" class="ml-4 text-red-500 hover:text-red-700">🗑</button>
+          </div>
+        `;
+        notesList.appendChild(div);
+      });
+    }
+
+    async function updateNote(id, value, field) {
+      await fetch(`/api/notes/${id}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ [field]: value })
+      });
+      showMessage("✅ Note updated successfully!");
+    }
+
+    async function deleteNote(id) {
+      await fetch(`/api/notes/${id}`, { method: 'DELETE' });
+      showMessage("🗑 Note deleted!");
+      fetchNotes();
+    }
+
+    document.getElementById('noteForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('title').value.trim();
+      const content = document.getElementById('content').value.trim();
+      if (!title || !content) return showMessage("⚠️ Both fields are required", true);
+
+      const res = await fetch('/api/notes', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ title, content })
+      });
+
+      if (res.ok) {
+        document.getElementById('noteForm').reset();
+        showMessage("✅ Note added!");
+        fetchNotes();
+      } else {
+        showMessage("❌ Failed to add note", true);
+      }
+    });
+
+    function showMessage(msg, isError = false) {
+      const el = document.getElementById('message');
+      el.textContent = msg;
+      el.className = isError ? 'text-red-600 text-center mb-4' : 'text-green-600 text-center mb-4';
+      setTimeout(() => el.textContent = '', 3000);
+    }
+
+    fetchNotes();
+  </script>
+</body>
+</html>
